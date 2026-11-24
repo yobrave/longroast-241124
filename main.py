@@ -12,6 +12,7 @@ CONFIG = {
     "source": "entry.txt",
     "artifact": "entry.txt",
     "floor": 1,
+    "encoding": "utf-8",
 }
 
 
@@ -44,7 +45,7 @@ def emit(body, here):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     src = locate_source()
-    with open(src, "r", encoding="utf-8") as fh:
+    with open(src, "r", encoding=CONFIG["encoding"]) as fh:
         raw = fh.read()
     body = guard(raw)
     dest = emit(body, here)
