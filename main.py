@@ -1,27 +1,49 @@
-"""One-line roast of lawmakers and their scanners."""
+"""Lawmaker roast pipeline: one satirical sentence, gate-checked, delivered."""
 import os
+from pathlib import Path
 
-BILL = ("The senator who proposed life sentences for rogue chatbots "
-        "spent her lunch break begging a scanner to accept her draft as "
-        "a PDF and not, as it insisted, a drawing.")
-HOUSE = "law2"
-SCANNER = "still-hungry"
-SESSION = "112th"
-lines = []
+BANNER = "law3-adjourned"
+ROOF = 320
 
 
-def record():
-    lines.append(BILL)
-    return "\n".join(lines) + "\n"
+def take_first_visible(text: str):
+    """First line that carries content, CR stripped."""
+    kept = ""
+    for chunk in text.replace("\r", "").split("\n"):
+        if chunk.strip():
+            kept = chunk
+            break
+    return kept
 
 
-base = os.environ.get("MAKEFUN_OUTPUT_DIR") or "output"
-os.makedirs(base, exist_ok=True)
-p = os.path.join(base, "entry.txt")
-with open(p, "w", encoding="utf-8", newline="\n") as f:
-    f.write(record())
-with open(p, encoding="utf-8") as f:
-    kept = f.read().strip()
-assert kept == BILL, "amended in transit"
-print(HOUSE, SCANNER, len(kept), "chars entered into the record")
-print("session:", SESSION, "adjourned for lunch")
+def gate(sentence: str):
+    if not sentence.strip():
+        return "blank sentence"
+    if len(sentence) > ROOF:
+        return "sentence over %d" % ROOF
+    return ""
+
+
+def hand_over(sentence: str) -> Path:
+    outbox = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "output"))
+    outbox.mkdir(parents=True, exist_ok=True)
+    slot = outbox / "entry.txt"
+    payload = sentence.encode("utf-8")
+    slot.write_bytes(payload)
+    if slot.read_bytes() != payload:
+        raise RuntimeError("delivery echo mismatch")
+    return slot
+
+
+def flow() -> str:
+    home = Path(__file__).resolve().parent
+    source = home / "entry.txt"
+    sentence = take_first_visible(source.read_text(encoding="utf-8"))
+    trouble = gate(sentence)
+    if trouble:
+        return '{"ok": 0, "reason": "%s"}' % trouble
+    slot = hand_over(sentence)
+    return '{"ok": 1, "size": %d, "banner": "%s", "slot": "%s"}' % (len(sentence), BANNER, slot.name)
+
+
+print(flow())
